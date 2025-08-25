@@ -1,0 +1,96 @@
+/* ===== THEME COLORS ===== */
+:root {
+  --color-primary: #6555c5;
+  --color-secondary: #234c77;
+  --color-delete: #f13b3b;
+  --color-yes: #4caf50;
+  --color-no: #f44336;
+  --color-warning: #ff9800;
+  --color-cardBg: #f3f3f3;
+
+  --color-add: #4caf50;
+  --color-cancel: #9e9e9e;
+  --color-edit: #ffc107;
+  --color-view: #0099ff;
+}
+
+/* ===== TEXT COLORS ===== */
+.rm-text-primary {
+  color: var(--color-primary) !important;
+}
+.rm-text-secondary {
+  color: var(--color-secondary) !important;
+}
+.rm-text-delete {
+  color: var(--color-delete) !important;
+}
+.rm-text-yes {
+  color: var(--color-yes) !important;
+}
+.rm-text-no {
+  color: var(--color-no) !important;
+}
+.rm-text-add {
+  color: var(--color-add) !important;
+}
+.rm-text-cancel {
+  color: var(--color-cancel) !important;
+}
+.rm-text-edit {
+  color: var(--color-edit) !important;
+}
+.rm-text-edit {
+  color: var(--color-edit) !important;
+}
+.rm-text-view {
+  color: var(--color-view) !important;
+}
+.rm-text-warning {
+  color: var(--color-warning) !important;
+}
+
+/* ===== BACKGROUND COLORS ===== */
+.rm-bg-primary {
+  background-color: var(--color-primary) !important;
+  color: white !important;
+}
+.rm-bg-secondary {
+  background-color: var(--color-secondary) !important;
+  color: white !important;
+}
+.rm-bg-delete {
+  background-color: var(--color-delete) !important;
+  color: white !important;
+}
+.rm-bg-yes {
+  background-color: var(--color-yes) !important;
+  color: white !important;
+}
+.rm-bg-no {
+  background-color: var(--color-no) !important;
+  color: white !important;
+}
+.rm-bg-add {
+  background-color: var(--color-add) !important;
+  color: white !important;
+}
+.rm-bg-cancel {
+  background-color: var(--color-cancel) !important;
+  color: white !important;
+}
+.rm-bg-edit {
+  background-color: var(--color-edit) !important;
+  color: black !important;
+}
+.rm-bg-view {
+  background-color: var(--color-view) !important;
+  color: rgb(255, 255, 255) !important;
+}
+.rm-bg-warning {
+  background-color: var(--color-warning) !important;
+  color: white !important;
+}
+
+.rm-bg-card {
+  background-color: var(--color-cardBg) !important;
+}

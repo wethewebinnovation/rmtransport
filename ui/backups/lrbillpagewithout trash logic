@@ -1,0 +1,1149 @@
+<template>
+  <v-main class="pa-4">
+    <!-- LR Bill Top Card with payment status filter and buttons -->
+    <v-card border flat>
+      <v-card-text>
+        <div class="d-flex justify-space-between align-center">
+          <v-spacer></v-spacer>
+          <v-spacer></v-spacer>
+          <v-spacer></v-spacer>
+
+          <!-- Payment Status Filter -->
+          <v-select
+            v-model="paymentStatusFilter"
+            :items="['Paid', 'To Pay']"
+            label="Paid/To Pay"
+            placeholder="Paid/To Pay"
+            variant="outlined"
+            density="compact"
+            class="me-4"
+            hide-details
+            clearable
+          ></v-select>
+
+          <!-- Search Box -->
+          <v-text-field
+            v-model="search"
+            label="Search"
+            variant="outlined"
+            prepend-inner-icon="mdi-magnify"
+            density="compact"
+            class="me-4"
+            hide-details
+          ></v-text-field>
+
+          <!-- Export Buttons -->
+          <v-btn class="me-4 rm-bg-delete" @click="exportPDF">
+            Export PDF <v-icon>mdi-file-pdf</v-icon>
+          </v-btn>
+          <v-btn class="me-4 rm-bg-add" @click="exportExcel">
+            Export Excel <v-icon>mdi-file-excel</v-icon>
+          </v-btn>
+
+          <!-- New Bill Button -->
+          <v-btn class="rm-bg-add" @click="openNewBillDialog">New Bill</v-btn>
+        </div>
+      </v-card-text>
+    </v-card>
+
+    <v-divider class="my-4"></v-divider>
+
+    <!-- LR Bill Data Table -->
+    <v-card style="min-height: calc(80vh - 64px)" border flat>
+      <v-data-table
+        :headers="headers"
+        :items="filteredLrBills"
+        :search="search"
+        style="min-height: calc(80vh - 64px)"
+      >
+        <template v-slot:[`item.payment_status`]="{ item }">
+          <v-chip
+            :class="item.payment_status === 'Paid' ? 'rm-bg-yes' : 'rm-bg-no'"
+            size="small"
+            variant="tonal"
+          >
+            {{ item.payment_status }}
+          </v-chip>
+        </template>
+        <template v-slot:[`item.actions`]="{ item }">
+          <v-icon
+            icon="mdi-pencil"
+            size="small"
+            class="rm-text-edit"
+            @click="editLrBill(item.id)"
+            title="Edit"
+          ></v-icon>
+          <v-icon
+            icon="mdi-eye"
+            size="small"
+            class="mx-5 rm-text-view"
+            @click="viewLrBill(item.id)"
+            title="View"
+          ></v-icon>
+          <v-icon
+            icon="mdi-delete"
+            size="small"
+            class="me-5 rm-text-delete"
+            @click="confirmDelete(item.id)"
+            title="Delete"
+          ></v-icon>
+          <v-icon
+            icon="mdi-printer"
+            size="small"
+            class="rm-text-primary"
+            @click="triggerPrint(item.id)"
+            title="Print"
+          ></v-icon>
+        </template>
+      </v-data-table>
+    </v-card>
+
+    <!-- Add/Edit Dialog -->
+    <v-dialog v-model="dialog" max-width="900px" persistent>
+      <v-card>
+        <v-toolbar class="rm-bg-primary" flat>
+          <v-toolbar-title>
+            {{ editedBill.id ? "Edit LR Bill" : "New LR Bill" }}
+          </v-toolbar-title>
+          <v-spacer></v-spacer>
+          <v-btn icon @click="dialog = false"><v-icon>mdi-close</v-icon></v-btn>
+        </v-toolbar>
+        <v-card-text class="pb-0">
+          <v-form ref="form" v-model="formValid" lazy-validation>
+            <!-- LR Number (auto generated, readonly) -->
+            <v-text-field
+              v-model="editedBill.lr_number"
+              label="LR Number"
+              readonly
+              variant="outlined"
+              density="compact"
+              class="mb-3"
+            />
+
+            <!-- Date Field -->
+            <v-text-field
+              v-model="editedBill.date"
+              label="Date"
+              type="date"
+              variant="outlined"
+              density="compact"
+              class="mb-3"
+            />
+
+            <!-- Two-column layout container -->
+            <v-row dense>
+              <!-- From Section -->
+              <v-col cols="12" md="6">
+                <h3 class="mb-3">From Customer</h3>
+                <v-combobox
+                  v-model="editedBill.from_customer"
+                  :items="customers.map((c) => c.customer_name)"
+                  label="From Customer Name"
+                  placeholder="Select or type From Customer"
+                  :rules="[(v) => !!v || 'From Customer is required']"
+                  required
+                  density="compact"
+                  class="mb-3"
+                  clearable
+                  allow-overflow
+                />
+                <v-combobox
+                  v-model="editedBill.from_location"
+                  label="From Place"
+                  placeholder="Type or select place"
+                  :items="customerPlaces"
+                  density="compact"
+                  class="mb-3"
+                  clearable
+                  solo
+                  :rules="[(v) => !!v || 'From Place is required']"
+                  required
+                />
+                <v-combobox
+                  v-model="editedBill.from_mobile"
+                  label="From Mobile Number"
+                  type="tel"
+                  placeholder="Type or select mobile number"
+                  density="compact"
+                  class="mb-3"
+                  :items="customerMobiles"
+                  maxlength="10"
+                  clearable
+                  solo
+                  :rules="[
+                    (v) => !!v || 'From Mobile Number is required',
+                    (v) => /^\d{10}$/.test(v) || 'Must be a 10-digit number',
+                  ]"
+                  required
+                />
+                <v-text-field
+                  v-model="editedBill.from_gstin"
+                  label="From GSTIN Number"
+                  density="compact"
+                  class="mb-3"
+                  hint="Optional"
+                  clearable
+                />
+              </v-col>
+              <!-- To Section -->
+              <v-col cols="12" md="6">
+                <h3 class="mb-3">To Customer</h3>
+                <v-combobox
+                  v-model="editedBill.to_customer"
+                  :items="customers.map((c) => c.customer_name)"
+                  label="To Customer Name"
+                  placeholder="Select or type To Customer"
+                  :rules="[(v) => !!v || 'To Customer is required']"
+                  required
+                  density="compact"
+                  class="mb-3"
+                  clearable
+                  solo
+                  allow-overflow
+                />
+                <v-combobox
+                  v-model="editedBill.to_location"
+                  label="To Place"
+                  placeholder="Type or select place"
+                  density="compact"
+                  :items="customerPlaces"
+                  class="mb-3"
+                  clearable
+                  solo
+                  :rules="[(v) => !!v || 'To Place is required']"
+                  required
+                />
+                <v-combobox
+                  v-model="editedBill.to_mobile"
+                  label="To Mobile Number"
+                  type="tel"
+                  placeholder="Type or select mobile number"
+                  density="compact"
+                  :items="customerMobiles"
+                  class="mb-3"
+                  maxlength="10"
+                  clearable
+                  solo
+                  :rules="[
+                    (v) => !!v || 'To Mobile Number is required',
+                    (v) => /^\d{10}$/.test(v) || 'Must be a 10-digit number',
+                  ]"
+                  required
+                />
+                <v-text-field
+                  v-model="editedBill.to_gstin"
+                  label="To GSTIN Number"
+                  density="compact"
+                  class="mb-3"
+                  hint="Optional"
+                  clearable
+                />
+              </v-col>
+            </v-row>
+            <v-divider class="mb-5"></v-divider>
+            <!-- Lorry & Driver Details -->
+            <h3 class="mb-3">Lorry & Driver Details</h3>
+            <v-row dense>
+              <v-combobox
+                v-model="editedBill.lorry_name"
+                :items="lorries.map((l) => l.lorry_name)"
+                label="Select or type Lorry"
+                density="compact"
+                class="mb-3"
+                clearable
+                solo
+              />
+              <input type="hidden" v-model="editedBill.lorry_id" />
+              <v-combobox
+                v-model="editedBill.lorry_number"
+                label="Lorry Number"
+                placeholder="Type or select Lorry Number"
+                density="compact"
+                :items="lorryNumbers"
+                class="mb-3"
+                clearable
+                :rules="[(v) => !!v || 'Lorry Number is required']"
+                required
+              />
+              <v-combobox
+                v-model="editedBill.driver_name"
+                :items="drivers.map((d) => d.name)"
+                label="Select or type Driver Name"
+                density="compact"
+                class="mb-3"
+                clearable
+                solo
+              />
+              <input type="hidden" v-model="editedBill.driver_id" />
+              <v-combobox
+                v-model="editedBill.driver_number"
+                :items="drivers.map((d) => d.driver_number)"
+                label="Select or type Driver Number"
+                density="compact"
+                class="mb-3"
+                clearable
+                solo
+              />
+            </v-row>
+            <v-select
+              variant="outlined"
+              v-model="editedBill.payment_status"
+              label="Payment Status"
+              :items="paymentStatusOptions"
+              :rules="[(v) => !!v || 'Payment Status is required']"
+              required
+              density="compact"
+            />
+            <v-divider class="mb-5"></v-divider>
+            <!-- Goods Details -->
+            <div>
+              <div class="d-flex justify-space-between align-center mb-5">
+                <h3>Goods Details :</h3>
+                <div class="d-flex flex-column align-end">
+                  <v-chip
+                    color="blue lighten-2"
+                    text-color="white"
+                    class="font-weight-bold mb-2"
+                  >
+                    Subtotal: {{ calculatedSubtotal }}
+                  </v-chip>
+                  <template v-if="gstIncluded && gstPercentage > 0">
+                    <v-chip
+                      color="orange lighten-2"
+                      text-color="white"
+                      class="font-weight-bold mb-1"
+                    >
+                      SGST ({{ gstPercentage }}%): {{ calculatedSGST }}
+                    </v-chip>
+                    <v-chip
+                      color="orange lighten-2"
+                      text-color="white"
+                      class="font-weight-bold mb-2"
+                    >
+                      CGST ({{ gstPercentage }}%): {{ calculatedCGST }}
+                    </v-chip>
+                  </template>
+                  <v-chip
+                    color="green lighten-2"
+                    text-color="white"
+                    class="font-weight-bold"
+                  >
+                    Total Amount: {{ calculatedTotal }}
+                  </v-chip>
+                </div>
+              </div>
+              <!-- Product Cards -->
+              <div
+                v-for="(product, index) in editedBill.products"
+                :key="index"
+                class="mb-4"
+              >
+                <v-card border flat>
+                  <v-row dense align="center" class="pa-4">
+                    <v-col cols="12" md="3">
+                      <v-combobox
+                        variant="outlined"
+                        v-model="product.product_type"
+                        :items="products.map((p) => p.name)"
+                        label="Select Product Type"
+                        :rules="[(v) => !!v || 'Product Type is required']"
+                        required
+                        density="compact"
+                        @change="(val) => onProductChange(index, val)"
+                      />
+                      <input type="hidden" v-model="product.product_id" />
+                    </v-col>
+                    <v-col cols="12" md="3">
+                      <v-text-field
+                        variant="outlined"
+                        v-model="product.description"
+                        label="Description"
+                        density="compact"
+                      />
+                    </v-col>
+                    <v-col cols="12" md="2">
+                      <v-text-field
+                        variant="outlined"
+                        v-model.number="product.quantity"
+                        label="Quantity"
+                        type="number"
+                        min="1"
+                        :rules="[(v) => v > 0 || 'Quantity must be positive']"
+                        required
+                        density="compact"
+                      />
+                    </v-col>
+                    <v-col cols="12" md="2">
+                      <v-text-field
+                        variant="outlined"
+                        v-model.number="product.amount"
+                        label="Amount"
+                        type="number"
+                        min="0"
+                        :rules="[
+                          (v) => !!v || 'Enter the Amount',
+                          (v) => v >= 0 || 'Amount cannot be negative',
+                        ]"
+                        required
+                        density="compact"
+                      />
+                    </v-col>
+                    <v-col cols="12" md="2">
+                      <v-text-field
+                        variant="outlined"
+                        v-model.number="product.discount"
+                        label="Discount"
+                        type="number"
+                        min="0"
+                        :rules="[
+                          (v) => v >= 0 || 'Discount cannot be negative',
+                        ]"
+                        density="compact"
+                      />
+                    </v-col>
+                    <v-col cols="12" md="1" class="mt-n6">
+                      <v-icon
+                        color="red"
+                        size="small"
+                        @click="removeProduct(index)"
+                        v-if="editedBill.products.length > 1"
+                        title="Delete Product"
+                      >
+                        mdi-close
+                      </v-icon>
+                    </v-col>
+                  </v-row>
+                </v-card>
+              </div>
+              <v-btn
+                class="rm-bg-add"
+                @click="addProduct"
+                elevation="2"
+                rounded
+              >
+                Add Product
+              </v-btn>
+            </div>
+            <v-divider class="my-5"></v-divider>
+            <h3 class="mb-2">Terms & Conditions</h3>
+            <v-card
+              border
+              elevation="0"
+              class="mb-4"
+              style="height: 100px; overflow-y: auto"
+            >
+              <v-card-text class="text-body-2">
+                {{ termsConditions }}
+              </v-card-text>
+            </v-card>
+          </v-form>
+        </v-card-text>
+        <v-card-actions class="pb-6 pe-6">
+          <v-spacer></v-spacer>
+          <v-btn class="rm-bg-cancel me-3" text @click="dialog = false"
+            >Cancel</v-btn
+          >
+          <v-btn class="rm-bg-add" :disabled="!formValid" @click="submitBill">
+            {{ editedBill.id ? "Update" : "Create" }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- View Dialog -->
+    <v-dialog v-model="viewDialog" max-width="900px" persistent>
+      <v-card>
+        <v-toolbar class="rm-bg-primary" flat>
+          <v-toolbar-title>View LR Bill</v-toolbar-title>
+          <v-spacer></v-spacer>
+          <v-btn icon @click="viewDialog = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-toolbar>
+        <v-card-text>
+          <v-row dense>
+            <v-col cols="12" md="4">
+              <h3 class="text-subtitle-1 mb-3">Basic Info</h3>
+              <div><strong>LR Number:</strong> {{ viewedBill.lr_number }}</div>
+              <div><strong>Date:</strong> {{ viewedBill.date }}</div>
+              <h3 class="text-subtitle-1 mt-5 mb-3">From Customer</h3>
+              <div>
+                <strong>From Customer Name:</strong>
+                {{ viewedBill.from_customer }}
+              </div>
+              <div><strong>Place:</strong> {{ viewedBill.from_location }}</div>
+              <div><strong>Mobile:</strong> {{ viewedBill.from_mobile }}</div>
+              <div><strong>GSTIN:</strong> {{ viewedBill.from_gstin }}</div>
+            </v-col>
+            <v-col cols="12" md="4">
+              <h3 class="text-subtitle-1 mb-3">To Customer</h3>
+              <div>
+                <strong>To Customer Name:</strong> {{ viewedBill.to_customer }}
+              </div>
+              <div><strong>Place:</strong> {{ viewedBill.to_location }}</div>
+              <div><strong>Mobile:</strong> {{ viewedBill.to_mobile }}</div>
+              <div><strong>GSTIN:</strong> {{ viewedBill.to_gstin }}</div>
+              <h3 class="text-subtitle-1 mt-5 mb-3">Vehicle & Driver</h3>
+              <div>
+                <strong>Lorry:</strong> {{ viewedBill.lorry_name }} -
+                {{ viewedBill.lorry_number }}
+              </div>
+              <div>
+                <strong>Driver Name:</strong> {{ viewedBill.driver_name }}
+              </div>
+              <div>
+                <strong>Driver Number:</strong> {{ viewedBill.driver_number }}
+              </div>
+            </v-col>
+            <v-col cols="12" md="4">
+              <h3 class="text-subtitle-1 mb-3">Product Details</h3>
+              <div
+                v-for="(product, i) in viewedBill.products"
+                :key="i"
+                class="mb-3 pa-2"
+                style="border: 1px solid #ddd; border-radius: 6px"
+              >
+                <div>
+                  <strong>Product Type:</strong> {{ product.product_type }}
+                </div>
+                <div>
+                  <strong>Description:</strong> {{ product.description }}
+                </div>
+                <div><strong>Quantity:</strong> {{ product.quantity }}</div>
+                <div><strong>Amount:</strong> {{ product.amount }}</div>
+                <div><strong>Discount:</strong> {{ product.discount }}</div>
+              </div>
+              <h3 class="text-subtitle-1 mt-5 mb-3">Financial Summary</h3>
+              <div><strong>Subtotal:</strong> {{ viewedBillSubtotal }}</div>
+              <template v-if="viewedBill.sgst_amount || viewedBill.cgst_amount">
+                <div>
+                  <strong>SGST:</strong> {{ viewedBill.sgst_amount || 0 }}
+                </div>
+                <div>
+                  <strong>CGST:</strong> {{ viewedBill.cgst_amount || 0 }}
+                </div>
+              </template>
+              <div>
+                <strong>Total Amount:</strong> {{ viewedBill.total_amount }}
+              </div>
+            </v-col>
+          </v-row>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+    <!-- Confirm Delete Dialog -->
+    <v-dialog v-model="deleteDialog" max-width="500px" persistent>
+      <v-card>
+        <v-card-title class="text-h6 rm-bg-delete">Confirm Delete</v-card-title>
+        <v-card-text>Are you sure you want to delete this LR Bill?</v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn class="rm-bg-cancel" @click="deleteDialog = false"
+            >Cancel</v-btn
+          >
+          <v-btn class="rm-bg-delete" @click="deleteBill">Delete</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </v-main>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted, computed, watch } from "vue";
+import axios from "axios";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+
+const search = ref("");
+const paymentStatusFilter = ref(null);
+const dialog = ref(false);
+const viewDialog = ref(false);
+const deleteDialog = ref(false);
+
+const formValid = ref(false);
+const form = ref(null);
+
+const termsConditions = ref("");
+const gstPercentage = ref(9);
+const gstIncluded = ref(false);
+
+const customers = ref([]);
+const lorries = ref([]);
+const drivers = ref([]);
+const products = ref([]);
+
+const paymentStatusOptions = ["Paid", "To Pay"];
+
+const headers = [
+  { title: "LR Number", value: "lr_number" },
+  { title: "Date", value: "date" },
+  { title: "From Customer", value: "from_customer" },
+  { title: "To Customer", value: "to_customer" },
+  { title: "Total Amount", value: "total_amount" },
+  { title: "Payment Status", value: "payment_status" },
+  { title: "Actions", value: "actions", sortable: false },
+];
+
+const customerPlaces = computed(() =>
+  Array.from(new Set(customers.value.map((c) => c.place).filter((c) => !!c)))
+);
+const customerMobiles = computed(() =>
+  Array.from(new Set(customers.value.map((c) => c.mobile).filter((c) => !!c)))
+);
+
+const lorryNumbers = computed(() =>
+  Array.from(new Set(lorries.value.map((l) => l.lorry_number).filter(Boolean)))
+);
+
+const lrBills = ref([]);
+const filteredLrBills = computed(() => {
+  if (!paymentStatusFilter.value) return lrBills.value;
+  return lrBills.value.filter(
+    (b) => b.payment_status === paymentStatusFilter.value
+  );
+});
+
+const editedBill = reactive({
+  id: null,
+  lr_number: "",
+  date: new Date().toISOString().substr(0, 10),
+  from_customer: "",
+  from_location: "",
+  from_mobile: "",
+  from_gstin: "",
+  to_customer: "",
+  to_location: "",
+  to_mobile: "",
+  to_gstin: "",
+  lorry_id: null,
+  lorry_name: "",
+  lorry_number: "",
+  driver_id: null,
+  driver_name: "",
+  driver_number: "",
+  payment_status: "To Pay",
+  products: [
+    {
+      product_id: null,
+      product_type: null,
+      description: "",
+      quantity: null,
+      amount: null,
+      discount: 0,
+    },
+  ],
+  subtotal_amount: 0,
+  sgst_amount: 0,
+  cgst_amount: 0,
+  total_amount: 0,
+});
+
+const viewedBill = reactive({});
+
+const calculatedSubtotal = computed(() => {
+  return editedBill.products.reduce((sum, p) => {
+    let amt = Number(p.amount) || 0;
+    let disc = Number(p.discount) || 0;
+    return sum + (amt - disc);
+  }, 0);
+});
+const calculatedSGST = computed(() => {
+  if (!gstIncluded.value) return 0;
+  return Math.round((calculatedSubtotal.value * gstPercentage.value) / 100);
+});
+const calculatedCGST = computed(() => {
+  if (!gstIncluded.value) return 0;
+  return Math.round((calculatedSubtotal.value * gstPercentage.value) / 100);
+});
+const calculatedTotal = computed(() => {
+  let total = calculatedSubtotal.value;
+  if (gstIncluded.value) {
+    total += calculatedSGST.value + calculatedCGST.value;
+  }
+  return total;
+});
+const viewedBillSubtotal = computed(() => {
+  if (!viewedBill.products || !Array.isArray(viewedBill.products)) return 0;
+  return viewedBill.products.reduce((sum, p) => {
+    let amt = Number(p.amount) || 0;
+    let disc = Number(p.discount) || 0;
+    return sum + (amt - disc);
+  }, 0);
+});
+watch(
+  [calculatedSubtotal, calculatedSGST, calculatedCGST, calculatedTotal],
+  () => {
+    editedBill.subtotal_amount = calculatedSubtotal.value;
+    editedBill.sgst_amount = gstIncluded.value ? calculatedSGST.value : 0;
+    editedBill.cgst_amount = gstIncluded.value ? calculatedCGST.value : 0;
+    editedBill.total_amount = calculatedTotal.value;
+  }
+);
+
+onMounted(async () => {
+  await fetchMasters();
+  await fetchSettings();
+  await fetchBills();
+  termsConditions.value = settings.terms_conditions || defaultTerms();
+});
+
+async function fetchMasters() {
+  try {
+    const [custRes, lorryRes, driverRes, productRes] = await Promise.all([
+      axios.get("/api/customers/"),
+      axios.get("/api/lorries/"),
+      axios.get("/api/drivers/"),
+      axios.get("/api/products/"),
+    ]);
+    customers.value = custRes.data;
+    lorries.value = lorryRes.data;
+    drivers.value = driverRes.data;
+    products.value = productRes.data;
+  } catch (error) {
+    console.error("Failed to fetch master data:", error);
+  }
+}
+
+const settings = reactive({
+  gst_percentage: 9,
+  gst_included: false,
+  terms_conditions: "",
+});
+async function fetchSettings() {
+  try {
+    const res = await axios.get("/api/settings/");
+    if (res.data) {
+      settings.gst_percentage = Number(res.data.gst_percentage) || 9;
+      settings.gst_included = res.data.gst_included;
+      settings.terms_conditions = res.data.terms_conditions || defaultTerms();
+      gstPercentage.value = settings.gst_percentage;
+      gstIncluded.value = settings.gst_included;
+      termsConditions.value = settings.terms_conditions;
+    }
+  } catch (error) {
+    console.error("Failed to fetch settings:", error);
+  }
+}
+async function fetchBills() {
+  try {
+    const res = await axios.get("/api/lrBills/");
+    lrBills.value = res.data;
+  } catch (error) {
+    console.error("Failed to fetch LR bills:", error);
+  }
+}
+async function openNewBillDialog() {
+  try {
+    const res = await axios.get("/api/lrBills/generateLrNumber");
+    Object.assign(editedBill, {
+      id: null,
+      lr_number: res.data,
+      date: new Date().toISOString().substr(0, 10),
+      from_customer: "",
+      from_location: "",
+      from_mobile: "",
+      from_gstin: "",
+      to_customer: "",
+      to_location: "",
+      to_mobile: "",
+      to_gstin: "",
+      lorry_id: null,
+      lorry_name: "",
+      lorry_number: "",
+      driver_id: null,
+      driver_name: "",
+      driver_number: "",
+      payment_status: "To Pay",
+      products: [
+        {
+          product_id: null,
+          product_type: null,
+          description: "",
+          quantity: null,
+          amount: null,
+          discount: 0,
+        },
+      ],
+      subtotal_amount: 0,
+      sgst_amount: 0,
+      cgst_amount: 0,
+      total_amount: 0,
+    });
+    dialog.value = true;
+  } catch (error) {
+    console.error("Failed to generate LR Number:", error);
+  }
+}
+function addProduct() {
+  editedBill.products.push({
+    product_id: null,
+    product_type: null,
+    description: "",
+    quantity: null,
+    amount: null,
+    discount: 0,
+  });
+}
+function removeProduct(index) {
+  if (editedBill.products.length > 1) {
+    editedBill.products.splice(index, 1);
+  }
+}
+// SET IDs on select change
+function onProductChange(idx, val) {
+  const productObj = products.value.find((p) => p.name === val);
+  if (productObj) editedBill.products[idx].product_id = productObj.id;
+}
+
+watch(
+  () => editedBill.lorry_name,
+  (newVal) => {
+    const lorryObj = lorries.value.find((l) => l.lorry_name === newVal);
+    editedBill.lorry_id = lorryObj ? lorryObj.id : null;
+  }
+);
+watch(
+  () => editedBill.driver_name,
+  (newVal) => {
+    const dObj = drivers.value.find((d) => d.name === newVal);
+    editedBill.driver_id = dObj ? dObj.id : null;
+  }
+);
+
+watch(
+  () => editedBill.from_customer,
+  (newVal) => {
+    const cust = customers.value.find((c) => c.customer_name === newVal);
+    editedBill.from_customer_id = cust ? cust.id : null;
+    if (cust) {
+      editedBill.from_location = cust.place || "";
+      editedBill.from_mobile = cust.mobile || "";
+      editedBill.from_gstin = cust.gstin || "";
+    }
+  }
+);
+
+watch(
+  () => editedBill.to_customer,
+  (newVal) => {
+    const cust = customers.value.find((c) => c.customer_name === newVal);
+    editedBill.to_customer_id = cust ? cust.id : null;
+    if (cust) {
+      editedBill.to_location = cust.place || "";
+      editedBill.to_mobile = cust.mobile || "";
+      editedBill.to_gstin = cust.gstin || "";
+    }
+  }
+);
+
+async function submitBill() {
+  if (!form.value.validate()) return;
+  try {
+    // Set lorry_id from lorry_name
+    if (editedBill.lorry_name) {
+      const lorry = lorries.value.find(
+        (l) => l.lorry_name === editedBill.lorry_name
+      );
+      editedBill.lorry_id = lorry ? lorry.id : null;
+    }
+    // Set driver_id from driver_name
+    if (editedBill.driver_name) {
+      const driver = drivers.value.find(
+        (d) => d.name === editedBill.driver_name
+      );
+      editedBill.driver_id = driver ? driver.id : null;
+    }
+    // Set product_ids in products array from product_type
+    editedBill.products.forEach((p) => {
+      if (p.product_type) {
+        const product = products.value.find(
+          (prod) => prod.name === p.product_type
+        );
+        p.product_id = product ? product.id : null;
+      }
+    });
+    // Customer IDs already set in watcher
+
+    if (editedBill.id) {
+      await axios.put(`/api/lrBills/${editedBill.id}`, editedBill);
+    } else {
+      await axios.post("/api/lrBills/", editedBill);
+    }
+    await fetchBills();
+    dialog.value = false;
+  } catch (error) {
+    console.error("Failed to save LR Bill:", error);
+  }
+}
+
+function editLrBill(id) {
+  const bill = lrBills.value.find((b) => b.id === id);
+  if (bill) {
+    const dateStr =
+      bill.date && bill.date.length >= 10
+        ? bill.date.slice(0, 10)
+        : new Date().toISOString().substr(0, 10);
+
+    Object.assign(editedBill, JSON.parse(JSON.stringify(bill)), {
+      date: dateStr,
+    });
+
+    // Map customer IDs to names & fill place/mobile/gstin for 'from'
+    if (bill.from_customer_id) {
+      const cust = customers.value.find((c) => c.id === bill.from_customer_id);
+      if (cust) {
+        editedBill.from_customer = cust.customer_name;
+        editedBill.from_location = cust.place;
+        editedBill.from_mobile = cust.mobile;
+        editedBill.from_gstin = cust.gstin;
+      }
+    }
+
+    // Map customer IDs to names & fill place/mobile/gstin for 'to'
+    if (bill.to_customer_id) {
+      const cust = customers.value.find((c) => c.id === bill.to_customer_id);
+      if (cust) {
+        editedBill.to_customer = cust.customer_name;
+        editedBill.to_location = cust.place;
+        editedBill.to_mobile = cust.mobile;
+        editedBill.to_gstin = cust.gstin;
+      }
+    }
+
+    // Same for lorry, driver as before (existing logic)
+    if (!editedBill.lorry_name && editedBill.lorry_id) {
+      const lorryObj = lorries.value.find((l) => l.id === editedBill.lorry_id);
+      if (lorryObj) editedBill.lorry_name = lorryObj.lorry_name;
+    }
+    if (!editedBill.driver_name && editedBill.driver_id) {
+      const driverObj = drivers.value.find(
+        (d) => d.id === editedBill.driver_id
+      );
+      if (driverObj) editedBill.driver_name = driverObj.name;
+    }
+    // Products product_type from product_id:
+    editedBill.products.forEach((p) => {
+      if (!p.product_type && p.product_id) {
+        const prod = products.value.find((pr) => pr.id === p.product_id);
+        if (prod) p.product_type = prod.name;
+      }
+    });
+
+    dialog.value = true;
+  }
+}
+
+function viewLrBill(id) {
+  const bill = lrBills.value.find((b) => b.id === id);
+  if (bill) {
+    const vBill = JSON.parse(JSON.stringify(bill));
+
+    // Map ids to names in viewedBill so UI shows names
+    if (vBill.from_customer_id && !vBill.from_customer) {
+      const cust = customers.value.find((c) => c.id === vBill.from_customer_id);
+      if (cust) {
+        vBill.from_customer = cust.customer_name;
+        vBill.from_location = cust.place;
+        vBill.from_mobile = cust.mobile;
+        vBill.from_gstin = cust.gstin;
+      }
+    }
+    if (vBill.to_customer_id && !vBill.to_customer) {
+      const cust = customers.value.find((c) => c.id === vBill.to_customer_id);
+      if (cust) {
+        vBill.to_customer = cust.customer_name;
+        vBill.to_location = cust.place;
+        vBill.to_mobile = cust.mobile;
+        vBill.to_gstin = cust.gstin;
+      }
+    }
+    if (!vBill.lorry_name && vBill.lorry_id) {
+      const lorry = lorries.value.find((l) => l.id === vBill.lorry_id);
+      if (lorry) vBill.lorry_name = lorry.lorry_name;
+    }
+    if (!vBill.driver_name && vBill.driver_id) {
+      const driver = drivers.value.find((d) => d.id === vBill.driver_id);
+      if (driver) vBill.driver_name = driver.name;
+    }
+    if (Array.isArray(vBill.products)) {
+      vBill.products.forEach((p) => {
+        if (!p.product_type && p.product_id) {
+          const prod = products.value.find((pr) => pr.id === p.product_id);
+          if (prod) p.product_type = prod.name;
+        }
+      });
+    }
+
+    Object.assign(viewedBill, vBill);
+    viewDialog.value = true;
+  }
+}
+
+let deleteId = null;
+function confirmDelete(id) {
+  deleteId = id;
+  deleteDialog.value = true;
+}
+async function deleteBill() {
+  try {
+    await axios.delete(`/api/lrBills/${deleteId}`);
+    await fetchBills();
+  } catch (error) {
+    console.error("Failed to delete LR Bill:", error);
+  }
+  deleteDialog.value = false;
+}
+function exportExcel() {
+  const flatData = lrBills.value.map((bill) => {
+    const productsArr = Array.isArray(bill.products) ? bill.products : [];
+    return {
+      "LR Number": bill.lr_number || "",
+      Date: bill.date || "",
+      "From Customer": bill.from_customer || "",
+      "From Location": bill.from_location || "",
+      "From Mobile": bill.from_mobile || "",
+      "From GSTIN": bill.from_gstin || "",
+      "To Customer": bill.to_customer || "",
+      "To Location": bill.to_location || "",
+      "To Mobile": bill.to_mobile || "",
+      "To GSTIN": bill.to_gstin || "",
+      "Lorry Name": bill.lorry_name || "",
+      "Lorry Number": bill.lorry_number || "",
+      "Driver Name": bill.driver_name || "",
+      "Driver Number": bill.driver_number || "",
+      "Payment Status": bill.payment_status || "",
+      Products: productsArr
+        .map(
+          (p, idx) =>
+            `${idx + 1}) ${p.product_type || ""} - ${
+              p.description || ""
+            } (Qty: ${p.quantity || 0}, Amt: ${p.amount || 0}, Disc: ${
+              p.discount || 0
+            })`
+        )
+        .join("\n"),
+      "Subtotal Amount": bill.subtotal_amount || 0,
+      "SGST Amount": bill.sgst_amount || 0,
+      "CGST Amount": bill.cgst_amount || 0,
+      "Total Amount": bill.total_amount || 0,
+      "Terms and Conditions": termsConditions.value || "",
+    };
+  });
+  const ws = XLSX.utils.json_to_sheet(flatData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "LR Bills");
+  XLSX.writeFile(wb, "LR_Bills_Detailed.xlsx");
+}
+function exportPDF() {
+  const doc = new jsPDF();
+  doc.setFontSize(18);
+  doc.text("LR Bills Detailed Report", 14, 15);
+  lrBills.value.forEach((bill, index) => {
+    const productsArr = Array.isArray(bill.products) ? bill.products : [];
+    let startY = index === 0 ? 25 : doc.lastAutoTable.finalY + 20;
+    if (startY > 250) {
+      doc.addPage();
+      startY = 20;
+    }
+    doc.setFontSize(12);
+    doc.text(`LR Number: ${bill.lr_number || ""}`, 14, startY);
+    doc.text(`Date: ${bill.date || ""}`, 150, startY);
+    startY += 6;
+    doc.text(
+      `From: ${bill.from_customer || ""} (${bill.from_location || ""}), Mob: ${
+        bill.from_mobile || ""
+      }`,
+      14,
+      startY
+    );
+    startY += 6;
+    doc.text(`From GSTIN: ${bill.from_gstin || "-"}`, 14, startY);
+    startY += 6;
+    doc.text(
+      `To: ${bill.to_customer || ""} (${bill.to_location || ""}), Mob: ${
+        bill.to_mobile || ""
+      }`,
+      14,
+      startY
+    );
+    startY += 6;
+    doc.text(`To GSTIN: ${bill.to_gstin || "-"}`, 14, startY);
+    startY += 6;
+    doc.text(
+      `Lorry: ${bill.lorry_name || ""} - ${bill.lorry_number || ""}`,
+      14,
+      startY
+    );
+    doc.text(
+      `Driver: ${bill.driver_name || ""} (${bill.driver_number || ""})`,
+      100,
+      startY
+    );
+    startY += 8;
+    autoTable(doc, {
+      startY: startY,
+      head: [
+        ["#", "Product Type", "Description", "Quantity", "Amount", "Discount"],
+      ],
+      body: productsArr.map((p, idx) => [
+        idx + 1,
+        p.product_type || "",
+        p.description || "",
+        p.quantity || "",
+        p.amount || "",
+        p.discount || "",
+      ]),
+      theme: "striped",
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [22, 160, 133] },
+      margin: { left: 14, right: 14 },
+    });
+    const tableEndY = doc.lastAutoTable.finalY || startY + 20;
+    doc.setFontSize(11);
+    doc.text(`Payment Status: ${bill.payment_status || ""}`, 14, tableEndY + 6);
+    if (bill.sgst_amount || bill.cgst_amount) {
+      doc.text(`Subtotal: ${bill.subtotal_amount || 0}`, 14, tableEndY + 12);
+      doc.text(`SGST: ${bill.sgst_amount || 0}`, 14, tableEndY + 18);
+      doc.text(`CGST: ${bill.cgst_amount || 0}`, 14, tableEndY + 24);
+      doc.text(`Total Amount: ${bill.total_amount || 0}`, 150, tableEndY + 24);
+    } else {
+      doc.text(`Total Amount: ${bill.total_amount || 0}`, 150, tableEndY + 6);
+    }
+    const termsY =
+      bill.sgst_amount || bill.cgst_amount ? tableEndY + 30 : tableEndY + 12;
+    doc.setFontSize(9);
+    doc.text("Terms and Conditions:", 14, termsY);
+    const termsText = termsConditions.value || defaultTerms();
+    doc.setFontSize(8);
+    const splitTerms = doc.splitTextToSize(termsText, 180);
+    doc.text(splitTerms, 14, termsY + 4);
+    if (index < lrBills.value.length - 1) {
+      doc.setDrawColor(180);
+      doc.line(
+        14,
+        doc.lastAutoTable.finalY + 35,
+        200,
+        doc.lastAutoTable.finalY + 35
+      );
+    }
+  });
+  doc.save("LR_Bills_Detailed.pdf");
+}
+function triggerPrint(id) {
+  const bill = lrBills.value.find((b) => b.id === id);
+  if (bill) {
+    alert(`Printing LR Bill: ${bill.lr_number}`);
+  }
+}
+function defaultTerms() {
+  return `1. The goods are transported at the owner's risk.
+2. The transporter is not responsible for any damage caused due to natural calamities.
+3. Payment terms must be followed as per agreement.
+4. All disputes are subject to local jurisdiction.
+5. The transporter reserves the right to withhold delivery until payment is settled.
+6. Ensure accurate details are provided to avoid delays.
+7. Any additional charges incurred during transit must be borne by the customer.
+8. Signing the LR Bill confirms acceptance of these conditions.`;
+}
+</script>

@@ -1,0 +1,141 @@
+-- Create database
+CREATE DATABASE IF NOT EXISTS rm_transport_db;
+USE rm_transport_db;
+
+-- =========================
+-- Customers Master
+-- =========================
+CREATE TABLE customers (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    customer_name VARCHAR(255) NOT NULL,
+    mobile VARCHAR(15) UNIQUE NOT NULL,
+    gst_number VARCHAR(20) UNIQUE,
+    place VARCHAR(100),
+    address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================
+-- Products Master
+-- =========================
+CREATE TABLE products (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================
+-- Lorries Master
+-- =========================
+CREATE TABLE lorries (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    lorry_name VARCHAR(255) NOT NULL,
+    lorry_number VARCHAR(50) NOT NULL UNIQUE,
+    capacity VARCHAR(50) NOT NULL,
+    remarks TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================
+-- Drivers Master
+-- =========================
+CREATE TABLE drivers (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    driver_number VARCHAR(15) NOT NULL UNIQUE,
+    license_number VARCHAR(50) NOT NULL,
+    remarks TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================
+-- Settings (only one row)
+-- =========================
+CREATE TABLE settings (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    company_name VARCHAR(255) DEFAULT 'RM Regular Service',
+    gst_percentage DECIMAL(5,2) DEFAULT 9.00,
+    gst_included BOOLEAN DEFAULT FALSE,
+    terms_conditions TEXT
+);
+
+-- Insert default settings row
+INSERT INTO settings (company_name, gst_percentage, gst_included, terms_conditions)
+VALUES (
+    'RM Regular Service',
+    9.00,
+    FALSE,
+    '1. The goods are transported at the owner''s risk.\n2. The transporter is not responsible for any damage caused due to natural calamities.'
+);
+
+-- =========================
+-- LR Number Counter
+-- =========================
+CREATE TABLE lr_number_counter (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    last_number INT NOT NULL DEFAULT 0
+);
+
+-- Initialize LR number counter
+INSERT INTO lr_number_counter (id, last_number) VALUES (1, 0);
+
+-- =========================
+-- LR Bills (Option A with snapshots)
+-- =========================
+CREATE TABLE lrbills (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    lr_number VARCHAR(50) UNIQUE NOT NULL,
+    date DATE NOT NULL,
+
+    -- From Customer (id + snapshot)
+    from_customer_id INT NULL,
+    from_customer_name VARCHAR(255),
+    from_customer_place VARCHAR(100),
+    from_customer_mobile VARCHAR(15),
+    from_customer_gst VARCHAR(20),
+
+    -- To Customer (id + snapshot)
+    to_customer_id INT NULL,
+    to_customer_name VARCHAR(255),
+    to_customer_place VARCHAR(100),
+    to_customer_mobile VARCHAR(15),
+    to_customer_gst VARCHAR(20),
+
+    -- Lorry (id + snapshot)
+    lorry_id INT NULL,
+    lorry_name VARCHAR(255),
+    lorry_number VARCHAR(50),
+
+    -- Driver (id + snapshot)
+    driver_id INT NULL,
+    driver_name VARCHAR(255),
+    driver_number VARCHAR(15),
+
+    -- Payment & amounts
+    payment_status ENUM('Paid', 'To Pay') DEFAULT 'To Pay',
+    subtotal_amount DECIMAL(12,2),
+    sgst_amount DECIMAL(12,2),
+    cgst_amount DECIMAL(12,2),
+    total_amount DECIMAL(12,2),
+
+    -- Status for Trash system
+    status ENUM('active','trash') DEFAULT 'active',
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================
+-- LR Bill Products
+-- =========================
+CREATE TABLE lrbill_products (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    bill_id INT NOT NULL,
+    product_id INT NULL,
+    product_name VARCHAR(255), -- snapshot if not in master
+    description TEXT,
+    quantity INT,
+    amount DECIMAL(12,2),
+    discount DECIMAL(12,2),
+    FOREIGN KEY (bill_id) REFERENCES lrbills(id) ON DELETE CASCADE
+);

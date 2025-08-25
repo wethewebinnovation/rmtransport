@@ -1,0 +1,182 @@
+Transport Management App – Final Database Structure
+
+1. customers
+Stores customer details used across LR Bills and other modules.
+
+Fields:
+
+id (INT / UUID, PK, Auto-generated)
+
+customer (VARCHAR, NOT NULL) — Customer or Company name
+
+mobile (VARCHAR(10), NOT NULL, UNIQUE) — 10-digit phone number
+
+gst (VARCHAR, UNIQUE, NULLABLE) — GSTIN with validation
+
+place (VARCHAR, NULLABLE) — City / Town
+
+address (TEXT, NULLABLE)
+
+created_at (TIMESTAMP, default NOW)
+
+updated_at (TIMESTAMP, auto-update)
+
+2. products
+Catalog of product types used in bills.
+
+Fields:
+
+id (INT / UUID, PK, Auto-generated)
+
+name (VARCHAR, NOT NULL, UNIQUE) — Product type/name
+
+description (TEXT, NULLABLE)
+
+created_at (TIMESTAMP, default NOW)
+
+updated_at (TIMESTAMP, auto-update)
+
+3. lorries
+Vehicle records.
+
+Fields:
+
+id (INT / UUID, PK, Auto-generated)
+
+lorryName (VARCHAR, NOT NULL)
+
+lorryNumber (VARCHAR, NOT NULL, UNIQUE)
+
+capacity (VARCHAR, NOT NULL) — e.g., 10 Tons
+
+remarks (TEXT, NULLABLE)
+
+created_at (TIMESTAMP, default NOW)
+
+updated_at (TIMESTAMP, auto-update)
+
+4. drivers
+Driver records.
+
+Fields:
+
+id (INT / UUID, PK, Auto-generated)
+
+name (VARCHAR, NOT NULL)
+
+driverNumber (VARCHAR(10), NOT NULL, UNIQUE)
+
+licenseNumber (VARCHAR, NOT NULL, UNIQUE)
+
+remarks (TEXT, NULLABLE)
+
+created_at (TIMESTAMP, default NOW)
+
+updated_at (TIMESTAMP, auto-update)
+
+5. users
+Login accounts for the application.
+
+Fields:
+
+id (INT / UUID, PK, Auto-generated)
+
+username (VARCHAR, NOT NULL, UNIQUE)
+
+password_hash (VARCHAR, NOT NULL) — store only hashed passwords
+
+created_at (TIMESTAMP, default NOW)
+
+updated_at (TIMESTAMP, auto-update)
+
+6. settings
+Global application settings
+(nav_title removed as per request).
+
+Fields:
+
+id (INT, PK, static single record e.g., 1)
+
+company_name (VARCHAR, NOT NULL)
+
+terms_conditions (TEXT, NOT NULL)
+
+created_at (TIMESTAMP, default NOW)
+
+updated_at (TIMESTAMP, auto-update)
+
+7. lr_bills
+Main transactional record of transport bills.
+
+Fields:
+
+id (INT / UUID, PK, Auto-generated)
+
+lr_number (VARCHAR, NOT NULL, UNIQUE) — format: RM/YYYY/MM/NNN/CCC
+
+continuous_count (INT, NOT NULL) — global running counter (never resets)
+
+date (DATE, NOT NULL)
+
+from_customer_id (INT / UUID, FK → customers.id)
+
+from_place (VARCHAR, NOT NULL)
+
+from_mobile (VARCHAR(10), NOT NULL)
+
+from_gst (VARCHAR, NULLABLE)
+
+to_customer_id (INT / UUID, FK → customers.id)
+
+to_place (VARCHAR, NOT NULL)
+
+to_mobile (VARCHAR(10), NOT NULL)
+
+to_gst (VARCHAR, NULLABLE)
+
+lorry_id (INT / UUID, FK → lorries.id)
+
+driver_id (INT / UUID, FK → drivers.id)
+
+payment_status (ENUM: 'Paid', 'To Pay')
+
+total_amount (FLOAT, NOT NULL)
+
+products (JSON ARRAY, NOT NULL) — each product object contains:
+
+product_id (FK → products.id)
+
+product_type (string)
+
+description (string)
+
+quantity (number)
+
+amount (number)
+
+discount (number)
+
+payment_status (string)
+
+created_at (TIMESTAMP, default NOW)
+
+updated_at (TIMESTAMP, auto-update)
+
+8. history_bills
+Backup/Archive of LR bills for safety.
+Structure is same as lr_bills but:
+
+No foreign key constraints required — stored as historical snapshot.
+
+Can only be deleted or restored to lr_bills from History page.
+
+Relationships Summary
+lr_bills → links to customers, lorries, drivers, products
+
+history_bills → standalone backup (mirrors lr_bills structure, changes only from UI actions in History)
+
+settings → single-row global config (company name + T&C)
+
+users → multiple accounts for login
+
+All master tables (customers, products, lorries, drivers) used in dropdowns/auto-fill in LR Bills page.

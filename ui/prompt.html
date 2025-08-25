@@ -1,0 +1,204 @@
+CustomerLayout.vue: here i can create customers. customers details are, customer name, number,place,gst number and
+description. this details should be accessed by lrbilllayout.vue i explain about lrbilllayout.vue in the last as of now
+i will just post continously about each page
+
+
+
+
+
+
+
+TrashLayout.vue: here i could not create edit or delete anything. if i delete a data in lrbillslayout.vue page it should
+be moved to this page. if i restore it should go back to lrbillslayout.vue page
+but every lr no created as new should be created at only one time even after deleted from lrbilllayout page it should
+not be generated again. for example RM/2025/08/11 is a lr entry in lrbillslayout.vue if i delete it it will move to
+trash page, and if i again create new lr bill the lr no should start from RM/2025/08/12 concept is once created lr no
+should not be used again (auto generate again)
+
+
+
+
+
+
+
+
+settingslayout.vue - here i can configure the application. 1. Company Info - i can change company name here that will
+reflect in baselayout.vye code(i will mention it when i submit baslayout file code) it will change the company name
+there. 2. Account Information - this will show current loggedin account user name and it could be ablle to change we use
+this user name to login. 3. Change Password - this settings is to change password of current loggedin use as like user
+name. 4. Accounts - here we can view all created and available account user name and their password and also can able to
+create users. 5. GST Settings - here we can set gst value that will be calculated in lrbilllaout billing dialog box with
+total amount also we can turn on or off the gst details in the bill, if included it will show in the dialog box if not
+included it will not show in the billing dialog box. 6. Terms & Conditions - this terms and conditions is also plced in
+the billing dialog box what we set will be saved and reflected there.
+
+baselayout.vue - i have given navigation in this page user could logut here also. and as i said before here there is "
+        <div style="white-space: nowrap" class="text-h6 ms-4 font-weight-bold">
+              {{ companyName }}
+            </div>" while changing company name in settings it should reflect here in "{{ companyName }}"
+
+
+
+
+
+
+
+
+LrBillsLayout.vue - here comes the main part. lr billing page. here when i click new bill button a dialog box will open.
+i will give the fields with its logics and functions below.
+fields:
+1. lrnumber : auto generated (fromat: RM/currentyear/currentmonth/01) i have posted its logic previously check it(avoid
+duplicate entry never use already genererated lr number even if the lr deleted it should not use deleted lr no while
+creating again).
+2. date : current billing date, date could be choosed which ever date we want also.
+3. From Customer details:
+a) from customer name - this should be a combo box that should accecpt both listed name and nonlisted name(typed newly
+that is not available in customer page). this name should be fetched from customerslayout.vue file's customer name, in
+the list it should show the number and place of the customer as small text caption style below the name of the customer,
+while choosing customer from the dropdown list it should automatically fill the place and number of the specific choosed
+customer we get in customerlayout.vue file
+b) place - it is also a combobox like from customer name field, it should fetch or get details we stored in customers
+page as mentioned above if a from customer is choosed it should automatically fill that cusomers place.
+c) number - it is also a combobox like from customer name field, it should fetch or get details we stored in customers
+page as mentioned above if a from customer is choosed it should automatically fill that cusomers number.
+d) gstno - it is also a combobox like from customer name field, it should fetch or get details we stored in customers
+page as mentioned above if a from customer is choosed it should automatically fill that cusomers gstno but this field is
+an optional field.
+4. To Customer details:
+a) To customer name - this should be a combo box that should accecpt both listed name and nonlisted name(typed newly
+that is not available in customer page). this name should be fetched from customerslayout.vue file's customer name, in
+the list it should show the number and place of the customer as small text caption style below the name of the customer,
+while choosing customer from the dropdown list it should automatically fill the place and number of the specific choosed
+customer we get in customerlayout.vue file
+b) place - it is also a combobox like from customer name field, it should fetch or get details we stored in customers
+page as mentioned above if a from customer is choosed it should automatically fill that cusomers place.
+c) number - it is also a combobox like from customer name field, it should fetch or get details we stored in customers
+page as mentioned above if a from customer is choosed it should automatically fill that cusomers number.
+d) gstno - it is also a combobox like from customer name field, it should fetch or get details we stored in customers
+page as mentioned above if a from customer is choosed it should automatically fill that cusomers gstno but this field is
+an optional field.
+5. Lorry & Driver Details:
+a) select Lorry - it is the select field that is drop down list fetched or get Lorry names stored in the lorrylayout.vue
+page while chooing the lorry it should automatically fill the lorry number stored in lorrylayout.vue.
+b) lorry number - it is the select field that is drop down list fetched or get Lorry numbers stored in the
+lorrylayout.vue
+c) driver name - it is the field that is drop down list fetched or get driver name stored in the driverlayout.vue page
+while chooing the driver name it should automatically fill the driver number stored in driverlayout.vue.
+d) drivernumber - it is the select field that is drop down list fetched or get driver numbers stored in the
+driverlayout.vue
+6. Goods Details :
+a) product type - here the products should be listed from productslayout.vue.
+b)description - here we can type description of the product or auto filled from productlayout.vue when we choose a
+product name in product type field (optional).
+c) quantity - here we can enter the products quantity in numbers only.
+d) amount - here we can enter the cost of the product
+e) discount - here we can add discount cost for the amount. i will explain how it will function in below.
+f) Add Product Button - actually product type, description, quantity, amount, discount are placed inside the card,
+onclicking add product button it will add one more card with above details. this will help to add more products in the
+bill also i have give close i con to delete the product if added by mistake.
+7. GST and bill calculation:
+a) Subtotal: 0 - here the products actual amount should be shown without calculating gst. if multiple products are added
+it should calculate cost of all product and show the actual amount. also while we give value in discount field it should
+discount here only.
+b)SGST (9%): 0 and CGST (9%): 0 - this chip will show the gst amount calculated from sub total after discont used or not
+used in the sub total. this gst persentage is configurable in settings page as i said before, it should not show when i
+turned off it in settings page.
+c) total amount - here the master or total amount should be shown after adding or without adding discount and calculated
+or gst amount added.
+8. terms and conditions - here the terms and conditions should be displayed from settings page. it is configurable from
+settingslayout.vue page what value is saved there will be shown here.
+
+this is the logic of lrbilllayout.vue file now carefully gothrough the field names v-models used, key names given in
+this
+
+LrBillsLayout.vue - here comes the main part. lr billing page. here when i click new bill button a dialog box will open.
+i will give the fields with its logics and functions below.
+fields:
+1. lrnumber : auto generated (fromat: RM/currentyear/currentmonth/01) i have posted its logic previously check it(avoid
+duplicate entry never use already genererated lr number even if the lr deleted it should not use deleted lr no while
+creating again).
+2. date : current billing date, date could be choosed which ever date we want also.
+3. From Customer details:
+a) from customer name - this should be a combo box that should accecpt both listed name and nonlisted name(typed newly
+that is not available in customer page). this name should be fetched from customerslayout.vue file's customer name, in
+the list it should show the number and place of the customer as small text caption style below the name of the customer,
+while choosing customer from the dropdown list it should automatically fill the place and number of the specific choosed
+customer we get in customerlayout.vue file
+b) place - it is also a combobox like from customer name field, it should fetch or get details we stored in customers
+page as mentioned above if a from customer is choosed it should automatically fill that cusomers place.
+c) number - it is also a combobox like from customer name field, it should fetch or get details we stored in customers
+page as mentioned above if a from customer is choosed it should automatically fill that cusomers number.
+d) gstno - it is also a combobox like from customer name field, it should fetch or get details we stored in customers
+page as mentioned above if a from customer is choosed it should automatically fill that cusomers gstno but this field is
+an optional field.
+4. To Customer details:
+a) To customer name - this should be a combo box that should accecpt both listed name and nonlisted name(typed newly
+that is not available in customer page). this name should be fetched from customerslayout.vue file's customer name, in
+the list it should show the number and place of the customer as small text caption style below the name of the customer,
+while choosing customer from the dropdown list it should automatically fill the place and number of the specific choosed
+customer we get in customerlayout.vue file
+b) place - it is also a combobox like from customer name field, it should fetch or get details we stored in customers
+page as mentioned above if a from customer is choosed it should automatically fill that cusomers place.
+c) number - it is also a combobox like from customer name field, it should fetch or get details we stored in customers
+page as mentioned above if a from customer is choosed it should automatically fill that cusomers number.
+d) gstno - it is also a combobox like from customer name field, it should fetch or get details we stored in customers
+page as mentioned above if a from customer is choosed it should automatically fill that cusomers gstno but this field is
+an optional field.
+5. Lorry & Driver Details:
+a) select Lorry - it is the select field that is drop down list fetched or get Lorry names stored in the lorrylayout.vue
+page while chooing the lorry it should automatically fill the lorry number stored in lorrylayout.vue.
+b) lorry number - it is the select field that is drop down list fetched or get Lorry numbers stored in the
+lorrylayout.vue
+c) driver name - it is the field that is drop down list fetched or get driver name stored in the driverlayout.vue page
+while chooing the driver name it should automatically fill the driver number stored in driverlayout.vue.
+d) drivernumber - it is the select field that is drop down list fetched or get driver numbers stored in the
+driverlayout.vue
+6. Goods Details :
+a) product type - here the products should be listed from productslayout.vue.
+b)description - here we can type description of the product or auto filled from productlayout.vue when we choose a
+product name in product type field (optional).
+c) quantity - here we can enter the products quantity in numbers only.
+d) amount - here we can enter the cost of the product
+e) discount - here we can add discount cost for the amount. i will explain how it will function in below.
+f) Add Product Button - actually product type, description, quantity, amount, discount are placed inside the card,
+onclicking add product button it will add one more card with above details. this will help to add more products in the
+bill also i have give close i con to delete the product if added by mistake.
+7. GST and bill calculation:
+a) Subtotal: 0 - here the products actual amount should be shown without calculating gst. if multiple products are added
+it should calculate cost of all product and show the actual amount. also while we give value in discount field it should
+discount here only.
+b)SGST (9%): 0 and CGST (9%): 0 - this chip will show the gst amount calculated from sub total after discont used or not
+used in the sub total. this gst persentage is configurable in settings page as i said before, it should not show when i
+turned off it in settings page.
+c) total amount - here the master or total amount should be shown after adding or without adding discount and calculated
+or gst amount added.
+8. terms and conditions - here the terms and condition will be fetched from settingslayout page and shown here. it is
+configurable in settings page. what value we saved in settings page will be shown here
+
+this is the logic of lrbillslayout.vue
+
+
+
+Bill print for driver prompt:
+Header Info:
+Company Name: RM Regular Lorry Service, Tirupur
+Invoice Number
+Lorry Name
+Lorry Number
+Driver Name
+Driver Number
+Date
+From Place
+To Place
+
+Table Columns:
+Sl. No.
+LR Number.
+From Customer
+From Place
+To Customer
+To Place
+Goods/Products
+Quantity
+Amount
+Payment status
